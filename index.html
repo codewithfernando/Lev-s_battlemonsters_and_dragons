@@ -1,0 +1,2380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lev's Battle Monsters and Dragons</title>
+<style>
+  :root {
+    --bg-dark: #0c0d12;
+    --panel-bg: rgba(18, 22, 33, 0.95);
+    --panel-border: #3b4252;
+    --accent: #e5a93b;
+    --accent-blue: #4f8cff;
+    --hp-green: #2ecc71;
+    --hp-yellow: #f1c40f;
+    --hp-red: #e74c3c;
+    --text-main: #eceff4;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  body {
+    background: var(--bg-dark);
+    color: var(--text-main);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #persistent-audio-bar {
+    position: fixed;
+    top: 14px;
+    right: 18px;
+    z-index: 1000;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+    font-size: 13px;
+  }
+  #persistent-audio-bar input[type="range"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  .active { display: flex !important; }
+
+  /* 1. Loading Screen */
+  #loading-screen {
+    background: #08090c;
+    text-align: center;
+    cursor: pointer;
+  }
+  .loading-card {
+    background: rgba(10, 12, 18, 0.92);
+    border: 4px solid var(--accent);
+    border-radius: 24px;
+    padding: 48px 40px;
+    max-width: 816px;
+    width: 85vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    box-shadow: 0 0 50px rgba(229, 169, 59, 0.35);
+  }
+  .loading-card h2 {
+    font-size: 1.9rem;
+    letter-spacing: 2px;
+  }
+  .title-art {
+    max-width: 544px;
+    width: 100%;
+    border-radius: 18px;
+    border: 3px solid var(--panel-border);
+  }
+  .pulse-text {
+    font-size: 1.7rem;
+    font-weight: bold;
+    color: var(--accent);
+    animation: textPulse 1.6s infinite alternate;
+  }
+
+  .step-screen {
+    background: radial-gradient(circle, #1a202c 0%, #0a0c10 100%);
+    gap: 14px;
+    padding: 20px;
+  }
+  .screen-header-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .btn-unlock-vault {
+    background: #434c5e;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    font-weight: bold;
+    font-size: 13px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  .btn-unlock-vault:hover {
+    background: var(--accent);
+    color: #0c0d12;
+  }
+
+  .grid-choices {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 1200px;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 10px;
+  }
+  .grid-choices::-webkit-scrollbar {
+    width: 8px;
+  }
+  .grid-choices::-webkit-scrollbar-thumb {
+    background: #3b4252;
+    border-radius: 4px;
+  }
+
+  .card-choice {
+    position: relative;
+    background: var(--panel-bg);
+    border: 2px solid var(--panel-border);
+    border-radius: 12px;
+    width: 175px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  }
+  .card-choice:hover:not(.card-locked) {
+    transform: translateY(-4px);
+    border-color: var(--accent);
+    box-shadow: 0 6px 18px rgba(229, 169, 59, 0.3);
+  }
+  .card-choice.selected {
+    border-color: #2ecc71;
+    box-shadow: 0 0 16px #2ecc71;
+  }
+
+  .card-locked {
+    filter: grayscale(85%);
+    opacity: 0.65;
+  }
+  .card-locked:hover {
+    border-color: #e74c3c;
+    box-shadow: 0 0 12px rgba(231, 76, 60, 0.5);
+    transform: translateY(-2px);
+  }
+  .lock-overlay {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid #bf616a;
+    color: #eceff4;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    z-index: 5;
+    letter-spacing: 0.5px;
+  }
+
+  .card-thumb {
+    width: 100%;
+    height: 120px;
+    background: #000;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .card-thumb img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+  .card-choice h4 {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    text-align: center;
+  }
+  .card-hp-tag {
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--hp-green);
+  }
+
+  /* Step 3: Battlefield Chooser */
+  #step-field-screen h2 {
+    font-size: 2.2rem;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  #field-roster {
+    max-width: 1500px;
+    max-height: 75vh;
+    gap: 24px;
+    padding: 14px;
+  }
+  #field-roster .card-choice {
+    width: 380px;
+    padding: 16px;
+    border-radius: 18px;
+    gap: 12px;
+    border-width: 3px;
+  }
+  #field-roster .card-choice h4 {
+    font-size: 22px;
+    padding-top: 4px;
+  }
+  .field-thumb {
+    height: 240px;
+    width: 100%;
+    border-radius: 12px;
+  }
+  .field-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .field-nav-controls {
+    display: flex;
+    gap: 18px;
+    margin-top: 8px;
+  }
+  .field-nav-controls button {
+    font-size: 1.1rem;
+    padding: 12px 28px;
+  }
+  .field-nav-controls .confirm-btn {
+    font-size: 1.25rem;
+    padding: 14px 48px;
+  }
+
+  button {
+    background: #252b3b;
+    color: #eceff4;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  button:hover {
+    border-color: var(--accent);
+    background: #2e364a;
+  }
+  .confirm-btn {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #0c0d12;
+    background: var(--accent);
+    border: none;
+    padding: 12px 36px;
+    border-radius: 8px;
+    margin-top: 6px;
+  }
+  .confirm-btn:hover { background: #f3b64c; }
+  .confirm-btn:disabled {
+    background: #4c566a;
+    color: #9aa5b8;
+    cursor: not-allowed;
+  }
+
+  /* Modals */
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-box {
+    background: var(--panel-bg);
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 650px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 0 25px rgba(229, 169, 59, 0.35);
+  }
+  .confirm-dialog-box {
+    max-width: 480px;
+    border-color: #bf616a;
+    box-shadow: 0 0 30px rgba(191, 97, 106, 0.4);
+    animation: fadeIn 0.25s ease;
+  }
+  .btn-cancel-exit {
+    background: #4c566a;
+    color: #eceff4;
+    border: none;
+    font-weight: bold;
+    padding: 10px 20px;
+    border-radius: 6px;
+  }
+  .btn-cancel-exit:hover {
+    background: #5e81ac;
+  }
+  .vault-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+    max-height: 45vh;
+    overflow-y: auto;
+    padding: 4px;
+  }
+  .vault-item {
+    background: #232837;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  .vault-item:hover {
+    border-color: var(--accent);
+    background: #2e3649;
+  }
+  .vault-item.unlocked-item {
+    border-color: var(--hp-green);
+    cursor: pointer;
+  }
+  .vault-item.unlocked-item:hover {
+    border-color: #e74c3c;
+    background: #3b2529;
+  }
+  .vault-item img {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    margin-bottom: 4px;
+  }
+  .vault-item h5 {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .btn-reset-vault {
+    background: #bf616a;
+    border: none;
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 6px 14px;
+    border-radius: 6px;
+  }
+  .btn-reset-vault:hover {
+    background: #d08770;
+  }
+
+  /* Battle Stage */
+  #battle-screen {
+    position: relative;
+    justify-content: space-between;
+  }
+  #battle-bg-layer {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-size: cover;
+    background-position: center;
+    z-index: 1;
+  }
+  .battle-header {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(180deg, rgba(0,0,0,0.85), transparent);
+  }
+  .exit-btn {
+    background: #bf616a;
+    border: none;
+    font-weight: bold;
+    padding: 8px 18px;
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+  }
+  .exit-btn:hover { background: #d08770; }
+
+  .battle-arena {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    padding-bottom: 12px;
+  }
+  .fighter-unit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 260px;
+    position: relative;
+    z-index: 3;
+    transition: width 0.2s ease;
+  }
+
+  .fighter-sprite-wrap {
+    width: 220px;
+    height: 220px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    position: relative;
+  }
+  .fighter-sprite-wrap img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 14px rgba(0,0,0,0.7));
+    transition: transform 0.2s ease, filter 0.2s ease, opacity 0.5s ease;
+  }
+  .flip-x {
+    transform: scaleX(-1);
+  }
+  .fighter-fainted {
+    opacity: 0.25;
+    filter: grayscale(100%) !important;
+  }
+
+  /* FX Overlays & Particles */
+  .fx-overlay-layer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: particleFade 0.6s ease-out forwards;
+  }
+
+  @keyframes particleFade {
+    0% { transform: translate(0, 0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+  }
+
+  .spell-flare {
+    position: absolute;
+    width: 140px;
+    height: 140px;
+    top: -70px;
+    left: -70px;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: spellBurst 0.45s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+  }
+
+  @keyframes spellBurst {
+    0% { transform: scale(0.2); opacity: 1; }
+    50% { opacity: 0.9; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+
+  .anim-lunge-right {
+    animation: lungeForwardRight 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .anim-lunge-left {
+    animation: lungeForwardLeft 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .anim-heavy-hit {
+    animation: heavyTremor 0.4s ease-in-out;
+    filter: brightness(3.0) contrast(2) drop-shadow(0 0 25px #ff2a2a) !important;
+  }
+  .anim-charge {
+    animation: chargingEnergy 0.5s infinite alternate;
+  }
+  .arena-screenshake {
+    animation: arenaQuake 0.35s ease-in-out;
+  }
+
+  @keyframes lungeForwardRight {
+    0% { transform: scaleX(-1) translateX(0); }
+    40% { transform: scaleX(-1) translateX(-180px) scale(1.15); }
+    100% { transform: scaleX(-1) translateX(0); }
+  }
+  @keyframes lungeForwardLeft {
+    0% { transform: translateX(0); }
+    40% { transform: translateX(-180px) scale(1.15); }
+    100% { transform: translateX(0); }
+  }
+  @keyframes heavyTremor {
+    0%, 100% { transform: translateX(0); }
+    15% { transform: translateX(35px) scale(0.95); }
+    35% { transform: translateX(-30px); }
+    55% { transform: translateX(20px); }
+    75% { transform: translateX(-15px); }
+    90% { transform: translateX(5px); }
+  }
+  @keyframes arenaQuake {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-8px, 6px); }
+    40% { transform: translate(7px, -7px); }
+    60% { transform: translate(-6px, -4px); }
+    80% { transform: translate(5px, 4px); }
+  }
+
+  .status-card {
+    background: rgba(16, 20, 30, 0.9);
+    border: 2px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    width: 100%;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  }
+  .status-row {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 13px;
+    margin-bottom: 5px;
+  }
+  .meter-bg {
+    width: 100%;
+    height: 10px;
+    background: #2e3440;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .meter-fill {
+    width: 100%;
+    height: 100%;
+    background: var(--hp-green);
+    transition: width 0.35s ease;
+  }
+  .badges-container {
+    display: flex;
+    gap: 6px;
+    margin-top: 5px;
+    font-size: 10px;
+    font-weight: bold;
+  }
+  .badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .badge-prz { background: #ebcb8b; color: #000; }
+  .badge-psn { background: #b48ead; color: #fff; }
+
+  /* Battle Dashboard Console */
+  .battle-console {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    height: 180px;
+    background: var(--panel-bg);
+    border-top: 2px solid var(--panel-border);
+    display: grid;
+    grid-template-columns: 1.3fr 2fr;
+  }
+  .battle-log {
+    padding: 14px 18px;
+    overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.5;
+    border-right: 1px solid var(--panel-border);
+    color: #d8dee9;
+  }
+  .battle-log p { margin-bottom: 4px; }
+  
+  .attack-grid-wrap {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 14px;
+    gap: 6px;
+  }
+  .attack-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    flex: 1;
+  }
+  .atk-btn {
+    background: #232837;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .atk-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: #2e3449;
+  }
+  .atk-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .atk-btn .name {
+    font-weight: bold;
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .atk-btn .desc {
+    font-size: 11px;
+    color: #9aa5b8;
+    margin-top: 2px;
+  }
+
+  .btn-flee-combat {
+    background: #3b2832;
+    border: 1px solid #bf616a;
+    color: #ffb4be;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 5px;
+    border-radius: 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  .btn-flee-combat:hover:not(:disabled) {
+    background: #bf616a;
+    color: #fff;
+  }
+
+  .post-match-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    grid-column: 1 / span 2;
+    padding: 10px;
+    animation: fadeIn 0.4s ease;
+  }
+  .winner-banner {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .winner-text { color: #2ecc71; }
+  .loser-text { color: #e74c3c; }
+  .draw-text { color: var(--accent); }
+
+  .post-btn-group {
+    display: flex;
+    gap: 16px;
+    margin-top: 4px;
+  }
+  .btn-rematch {
+    background: #2ecc71;
+    color: #0c0d12;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 9px 24px;
+    border: none;
+  }
+  .btn-rematch:hover { background: #27ae60; }
+  .btn-menu-exit {
+    background: var(--accent);
+    color: #0c0d12;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 9px 24px;
+    border: none;
+  }
+  .btn-menu-exit:hover { background: #f3b64c; }
+
+  @keyframes textPulse {
+    from { opacity: 0.7; transform: scale(1); }
+    to { opacity: 1; transform: scale(1.03); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+  <div id="persistent-audio-bar">
+    <span>🔊 Volume</span>
+    <input type="range" id="master-vol" min="0" max="1" step="0.05" value="0.7">
+    <button id="mute-toggle" onclick="toggleAudioMute()">Mute</button>
+  </div>
+
+  <audio id="core-audio-player" src="Loading%20screen%20track.mp3" autoplay preload="auto" loop></audio>
+
+  <!-- 1. Loading Screen -->
+  <div id="loading-screen" class="screen active" onclick="enterStepCharacter()">
+    <div class="loading-card">
+      <img src="loading screen title.png" alt="Title" class="title-art" onerror="this.src='loading screen title.jpg'">
+      <h2>BATTLE MONSTERS & DRAGONS</h2>
+      <div class="pulse-text">▶ CLICK ANYWHERE TO ENTER ARENA</div>
+    </div>
+  </div>
+
+  <!-- 2. Step 1: Select Your Character -->
+  <div id="step-character-screen" class="screen step-screen">
+    <div class="screen-header-row">
+      <h2>STEP 1: CHOOSE YOUR FIGHTER</h2>
+      <button class="btn-unlock-vault" onclick="openUnlockVault()">🔓 Unlock / Lock Vault</button>
+    </div>
+    <div class="grid-choices" id="player-roster"></div>
+    <button class="confirm-btn" id="btn-confirm-char" onclick="confirmCharacter()" disabled>Next: Choose Opponent</button>
+  </div>
+
+  <!-- 3. Step 2: Select Your Opponent -->
+  <div id="step-opponent-screen" class="screen step-screen">
+    <div class="screen-header-row">
+      <h2>STEP 2: CHOOSE YOUR OPPONENT</h2>
+      <button class="btn-unlock-vault" onclick="openUnlockVault()">🔓 Unlock / Lock Vault</button>
+    </div>
+    <div class="grid-choices" id="opponent-roster"></div>
+    <div style="display: flex; gap: 12px;">
+      <button onclick="navigateTo('step-character-screen')">Back</button>
+      <button class="confirm-btn" id="btn-confirm-opp" onclick="confirmOpponent()" disabled>Next: Choose Battlefield</button>
+    </div>
+  </div>
+
+  <!-- 4. Step 3: Select Battlefield -->
+  <div id="step-field-screen" class="screen step-screen">
+    <h2>STEP 3: CHOOSE THE BATTLEFIELD</h2>
+    <div class="grid-choices" id="field-roster"></div>
+    <div class="field-nav-controls">
+      <button onclick="navigateTo('step-opponent-screen')">Back</button>
+      <button class="confirm-btn" id="btn-confirm-field" onclick="initiateBattle()" disabled>START BATTLE</button>
+    </div>
+  </div>
+
+  <!-- Character Unlock/Lock Vault Modal -->
+  <div id="unlock-modal" class="modal-backdrop">
+    <div class="modal-box">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>CHARACTER UNLOCK & LOCK VAULT</h3>
+        <button class="btn-reset-vault" onclick="resetAllUnlocks()">Reset All Unlocks</button>
+      </div>
+      <p style="font-size: 13px; color: #d8dee9;">
+        • Click any <b>LOCKED</b> character and enter passcode (12345) to unlock.<br>
+        • Click any <b>UNLOCKED</b> character to re-lock them.
+      </p>
+      <div class="vault-grid" id="vault-items-wrap"></div>
+      <div style="display: flex; justify-content: flex-end;">
+        <button onclick="closeUnlockVault()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Exit Battle Confirmation Modal -->
+  <div id="exit-confirm-modal" class="modal-backdrop">
+    <div class="modal-box confirm-dialog-box">
+      <h3 style="color: #bf616a;">⚠️ Quit Current Battle?</h3>
+      <p style="font-size: 14px; color: #eceff4; line-height: 1.5;">Are you sure you want to exit this duel? Your current match progress will be lost and you will return to character selection.</p>
+      <div style="display: flex; gap: 14px; justify-content: flex-end; margin-top: 8px;">
+        <button class="btn-cancel-exit" onclick="cancelBattleExit()">Resume Battle</button>
+        <button class="exit-btn" onclick="executeBattleExit()">Yes, Exit Battle</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Active Battle Screen -->
+  <div id="battle-screen" class="screen">
+    <div id="battle-bg-layer"></div>
+    <div class="battle-header">
+      <h3 id="arena-banner-title">Arena Showdown</h3>
+      <button class="exit-btn" onclick="openBattleExitPrompt()">Exit Battle</button>
+    </div>
+
+    <div class="battle-arena">
+      <div class="fighter-unit" id="player-unit-container">
+        <div class="status-card">
+          <div class="status-row">
+            <span id="player-unit-name">Player</span>
+            <span id="player-hp-num">120/120</span>
+          </div>
+          <div class="meter-bg"><div id="player-hp-meter" class="meter-fill"></div></div>
+          <div class="badges-container" id="player-status-badges"></div>
+        </div>
+        <div class="fighter-sprite-wrap" id="player-sprite-wrap">
+          <div class="fx-overlay-layer" id="player-fx-layer"></div>
+          <img id="active-player-sprite" class="flip-x" src="" alt="Player">
+        </div>
+      </div>
+
+      <div class="fighter-unit" id="enemy-unit-container">
+        <div class="status-card">
+          <div class="status-row">
+            <span id="enemy-unit-name">Opponent</span>
+            <span id="enemy-hp-num">120/120</span>
+          </div>
+          <div class="meter-bg"><div id="enemy-hp-meter" class="meter-fill"></div></div>
+          <div class="badges-container" id="enemy-status-badges"></div>
+        </div>
+        <div class="fighter-sprite-wrap" id="enemy-sprite-wrap">
+          <div class="fx-overlay-layer" id="enemy-fx-layer"></div>
+          <img id="active-enemy-sprite" src="" alt="Opponent">
+        </div>
+      </div>
+    </div>
+
+    <div class="battle-console">
+      <div class="battle-log" id="arena-log-feed"></div>
+      <div class="attack-grid-wrap" id="console-action-dock">
+        <div class="attack-grid" id="action-commands"></div>
+        <button class="btn-flee-combat" id="btn-forfeit-duel" onclick="openBattleExitPrompt()">🏃 Flee / Quit Duel</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  /* ================= AUDIO SYSTEM ================= */
+  const MENU_AUDIO_TRACK = "Loading screen track.mp3";
+  const BATTLE_AUDIO_TRACK = "Song 2.mp3";
+
+  const soundEngine = document.getElementById('core-audio-player');
+  const volumeControl = document.getElementById('master-vol');
+
+  let audioCtx = null;
+  function initWebAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function playTrack(trackPath) {
+    const safeEncoded = encodeURI(trackPath);
+    if (!soundEngine.src.includes(safeEncoded) && !soundEngine.src.endsWith(trackPath)) {
+      soundEngine.src = safeEncoded;
+      soundEngine.load();
+    }
+    const playPromise = soundEngine.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(err => {
+        console.warn("Audio autoplay blocked by browser policy until interaction:", err);
+      });
+    }
+  }
+
+  function attemptInstantAudio() {
+    initWebAudio();
+    playTrack(MENU_AUDIO_TRACK);
+  }
+
+  volumeControl.addEventListener('input', (e) => {
+    soundEngine.volume = parseFloat(e.target.value);
+  });
+
+  function toggleAudioMute() {
+    soundEngine.muted = !soundEngine.muted;
+    document.getElementById('mute-toggle').innerText = soundEngine.muted ? 'Unmute' : 'Mute';
+  }
+
+  function playFxSound(type) {
+    initWebAudio();
+    if (!audioCtx || soundEngine.muted) return;
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const now = audioCtx.currentTime;
+    const vol = soundEngine.volume;
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    if (type === 'drain') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(280, now);
+      osc.frequency.exponentialRampToValueAtTime(750, now + 0.35);
+      gain.gain.setValueAtTime(0.3 * vol, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+      osc.start(now);
+      osc.stop(now + 0.35);
+    } else if (type === 'paralysis') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.setValueAtTime(300, now + 0.08);
+      osc.frequency.setValueAtTime(800, now + 0.16);
+      gain.gain.setValueAtTime(0.25 * vol, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    } else if (type === 'poison') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.linearRampToValueAtTime(180, now + 0.28);
+      gain.gain.setValueAtTime(0.35 * vol, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.28);
+      osc.start(now);
+      osc.stop(now + 0.28);
+    } else if (type === 'buff') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.linearRampToValueAtTime(680, now + 0.25);
+      gain.gain.setValueAtTime(0.25 * vol, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } else if (type === 'debuff') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.linearRampToValueAtTime(240, now + 0.25);
+      gain.gain.setValueAtTime(0.25 * vol, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } else if (type === 'blast') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.exponentialRampToValueAtTime(40, now + 0.45);
+      gain.gain.setValueAtTime(0.4 * vol, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
+      osc.start(now);
+      osc.stop(now + 0.45);
+    } else if (type === 'victory') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(330, now);
+      osc.frequency.setValueAtTime(440, now + 0.12);
+      osc.frequency.setValueAtTime(554, now + 0.24);
+      osc.frequency.setValueAtTime(660, now + 0.36);
+      gain.gain.setValueAtTime(0.35 * vol, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.65);
+      osc.start(now);
+      osc.stop(now + 0.65);
+    } else if (type === 'defeat') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.linearRampToValueAtTime(110, now + 0.6);
+      gain.gain.setValueAtTime(0.35 * vol, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.6);
+      osc.start(now);
+      osc.stop(now + 0.6);
+    }
+  }
+
+  /* ================= ALL FIGHTERS ROSTER ================= */
+  const FIGHTERS = [
+    {
+      id: "arkanine",
+      name: "Arcanine",
+      hp: 200,
+      scale: 1.1,
+      sprite: "arkanine.png",
+      fallback: "arkanine.jpg",
+      unlocked: true,
+      moves: ["flamethrower", "fire_fang", "solar_flare", "intimidate_roar"]
+    },
+    {
+      id: "blizzard_wing",
+      name: "Blizzard Wing",
+      hp: 2300,
+      scale: 2.2,
+      sprite: "Blizzard_Wing.png",
+      fallback: "Blizzard_Wing.jpg",
+      unlocked: false,
+      moves: ["glacial_breath", "frost_drain", "absolute_zero_blast", "frostbite_paralyze"]
+    },
+    {
+      id: "bohdan",
+      name: "Bohdan",
+      hp: 1000,
+      scale: 1.35,
+      sprite: "Bohdan.png",
+      fallback: "Bohdan.jpg",
+      unlocked: false,
+      moves: ["war_hammer_crush", "siphon_slam", "cataclysmic_quake", "iron_defense_buff"]
+    },
+    {
+      id: "bohdan_elesium",
+      name: "Bohdan (Elesium Hammer)",
+      hp: 1000,
+      scale: 1.6,
+      sprite: "Bohdan with hammer from Elesium.png",
+      fallback: "Bohdan with hammer from Elesium.jpg",
+      unlocked: false,
+      moves: ["elesium_hammer_cleave", "prismatic_core_drain", "elesium_cataclysm", "bogatyr_valor_aegis"]
+    },
+    {
+      id: "charizard",
+      name: "Charizard",
+      hp: 330,
+      scale: 1.8,
+      sprite: "Charizard.png",
+      fallback: "Charizard.jpg",
+      unlocked: false,
+      moves: ["flamethrower", "fire_fang", "solar_flare", "sharpen_blades"]
+    },
+    {
+      id: "cinder_gills",
+      name: "Cinder-Gills",
+      hp: 1700,
+      scale: 1.25,
+      sprite: "Cinder-Gills.png",
+      fallback: "Cinder-Gills.jpg",
+      unlocked: false,
+      moves: ["plasma_claw", "magma_siphon", "hyper_atomic_breath", "molten_scales_buff"]
+    },
+    {
+      id: "crocbra",
+      name: "Croc-Bra",
+      hp: 750,
+      scale: 1.15,
+      sprite: "Croc-Bra.png",
+      fallback: "Croc-Bra.jpg",
+      unlocked: false,
+      moves: ["absorb_drain", "dragon_meteor", "brawler_smash", "toxic_fang"]
+    },
+    {
+      id: "crocos2",
+      name: "Crocos (Level 2)",
+      hp: 500,
+      scale: 1.2,
+      sprite: "Crocos_level_2.png",
+      fallback: "Crocos_level_2.jpg",
+      unlocked: false,
+      moves: ["absorb_drain", "dragon_meteor", "hyper_hammer", "sharpen_blades"]
+    },
+    {
+      id: "crocos_the_bad",
+      name: "Crocos the Bad",
+      hp: 230,
+      scale: 1.4,
+      sprite: "crocos_the_bad.png",
+      fallback: "crocos_the_bad.jpg",
+      unlocked: false,
+      moves: ["blood_fist", "draining_rend", "dark_colossus_smash", "terrifying_glare"]
+    },
+    {
+      id: "cyber_gorgon",
+      name: "Cyber-Gorgon",
+      hp: 1850,
+      scale: 1.85,
+      sprite: "Cyber-Gorgon (2).png",
+      fallback: "Cyber-Gorgon (2).jpg",
+      unlocked: false,
+      moves: ["cyber_palm_repulsor", "hyper_core_siphon", "red_plasma_obliteration", "mecha_cyber_shell"]
+    },
+    {
+      id: "cyber_zebzy",
+      name: "Cyber Zebzy",
+      hp: 380,
+      scale: 1.1,
+      sprite: "Cyber_Zebzy.png",
+      fallback: "Cyber_Zebzy.jpg",
+      unlocked: false,
+      moves: ["cyber_kick", "pulse_drain", "overclock_burst", "emp_paralyze"]
+    },
+    {
+      id: "devo",
+      name: "Devo",
+      hp: 3000,
+      scale: 2.6,
+      sprite: "Devo.png",
+      fallback: "Devo.jpg",
+      unlocked: false,
+      moves: ["tri_elemental_strike", "vital_leech", "apocalypse_storm", "celestial_buff"]
+    },
+    {
+      id: "draco",
+      name: "Draco",
+      hp: 1700,
+      scale: 2.5,
+      sprite: "Draco.png",
+      fallback: "Draco.jpg",
+      unlocked: false,
+      moves: ["triple_shadow_breath", "void_drain", "meteor_storm", "emp_paralyze"]
+    },
+    {
+      id: "dragon_warrior",
+      name: "Dragon Warrior",
+      hp: 500,
+      scale: 1.6,
+      sprite: "dragon_warrior.png",
+      fallback: "dragon_warrior.jpg",
+      unlocked: false,
+      moves: ["dragon_breath", "drain_punch", "hyper_beam_rush", "dragon_dance_buff"]
+    },
+    {
+      id: "future_luka",
+      name: "Future Luka",
+      hp: 180,
+      scale: 1.15,
+      sprite: "Future_Luka_2.png",
+      fallback: "Future_Luka_2.jpg",
+      unlocked: false,
+      moves: ["chronos_spear", "emerald_drain", "temporal_surge", "time_warp_buff"]
+    },
+    {
+      id: "garydose",
+      name: "Garydose",
+      hp: 300,
+      scale: 1.5,
+      sprite: "garydose.png",
+      fallback: "garydose.jpg",
+      unlocked: false,
+      moves: ["hydro_pump", "aqua_drain", "oceanic_hyper_beam", "terrifying_glare"]
+    },
+    {
+      id: "gevon",
+      name: "Gevon",
+      hp: 1800,
+      scale: 2.1,
+      sprite: "Gevon.png",
+      fallback: "Gevon.jpg",
+      unlocked: false,
+      moves: ["thunder_hammer_bash", "volcanic_drain", "tectonic_slam", "battle_rage_buff"]
+    },
+    {
+      id: "gorgon",
+      name: "Gorgon the Terrible",
+      hp: 1500,
+      scale: 1.9,
+      sprite: "Gorgon.png",
+      fallback: "Gorgon.jpg",
+      unlocked: false,
+      moves: ["volcanic_hammer", "lava_drain", "earth_breaker", "battle_rage_buff"]
+    },
+    {
+      id: "krell",
+      name: "Krell",
+      hp: 75,
+      scale: 1.2,
+      sprite: "Krell.png",
+      fallback: "Krell.jpg",
+      unlocked: false,
+      moves: ["thunder_fist", "plasma_discharge", "titan_crush", "overcharge_stun"]
+    },
+    {
+      id: "lance_great",
+      name: "Lance the Great",
+      hp: 250,
+      scale: 1.1,
+      sprite: "Lance_the_Great.png",
+      fallback: "Lance_the_Great.jpg",
+      unlocked: false,
+      moves: ["radiant_blade", "solar_drain", "judgment_strike", "aegis_ward"]
+    },
+    {
+      id: "lance_great_lvl4",
+      name: "Lance the Great (Lvl 4)",
+      hp: 380,
+      scale: 1.25,
+      sprite: "Lance_the_Great_Level_4.png",
+      fallback: "Lance_the_Great_Level_4.jpg",
+      unlocked: false,
+      moves: ["celestial_arrow", "solar_drain", "valkyrie_strike", "celestial_buff"]
+    },
+    {
+      id: "lev_adventurer",
+      name: "Lev",
+      hp: 50,
+      scale: 1.0,
+      sprite: "Lev.png",
+      fallback: "Lev.jpg",
+      unlocked: false,
+      moves: ["wrist_blaster", "gem_drain", "orbital_bombardment", "smokescreen_debuff"]
+    },
+    {
+      id: "lev_lvl1",
+      name: "Lev (Level 1)",
+      hp: 130,
+      scale: 1.05,
+      sprite: "Lev_level_1.png",
+      fallback: "Lev_level_1.jpg",
+      unlocked: false,
+      moves: ["cyber_pulse", "vortex_beam", "hyper_overload", "shield_charge_buff"]
+    },
+    {
+      id: "lev_lvl2",
+      name: "Lev (Level 2)",
+      hp: 220,
+      scale: 1.15,
+      sprite: "Lev_level_2.png",
+      fallback: "Lev_level_2.jpg",
+      unlocked: false,
+      moves: ["cannons_blaster", "vortex_beam", "shoulder_barrage", "defense_grid_buff"]
+    },
+    {
+      id: "lev_lvl3",
+      name: "Lev (Level 3)",
+      hp: 340,
+      scale: 1.25,
+      sprite: "Lev_level_3.png",
+      fallback: "Lev_level_3.jpg",
+      unlocked: false,
+      moves: ["golden_fist", "solar_siphon", "godspeed_strike", "divine_aura_buff"]
+    },
+    {
+      id: "lev_lvl4",
+      name: "Lev (Level 4)",
+      hp: 440,
+      scale: 1.3,
+      sprite: "Lev4.png",
+      fallback: "Lev level 4.jpg",
+      unlocked: false,
+      moves: ["griffin_blade_slash", "aegis_crystal_drain", "lightning_smite_charge", "griffin_bastion_buff"]
+    },
+    {
+      id: "lev_lvl5",
+      name: "Lev (Level 5)",
+      hp: 550,
+      scale: 1.4,
+      sprite: "Lev level 5.png",
+      fallback: "Lev level 5.jpg",
+      unlocked: false,
+      moves: ["skyward_lightning_cleave", "nano_paladin_drain", "judgment_vortex_dive", "overdrive_aegis_buff"]
+    },
+    {
+      id: "lev_terrible",
+      name: "Lev the Terrible",
+      hp: 400,
+      scale: 1.35,
+      sprite: "Lev_the_Terrible_2.png",
+      fallback: "Lev_the_Terrible_2.jpg",
+      unlocked: false,
+      moves: ["runic_slash", "vampiric_blade", "cataclysm_strike", "shield_fortify"]
+    },
+    {
+      id: "leva",
+      name: "Leva",
+      hp: 580,
+      scale: 1.2,
+      sprite: "Leva.png",
+      fallback: "Leva.jpg",
+      unlocked: false,
+      moves: ["crystal_blade", "emerald_leech", "skyward_slash", "crystal_shield_buff"]
+    },
+    {
+      id: "luka_young",
+      name: "Luka",
+      hp: 50,
+      scale: 0.95,
+      sprite: "Luka.png",
+      fallback: "Luka.jpg",
+      unlocked: false,
+      moves: ["chi_strike", "energy_drain", "dragon_kick_charge", "spirit_focus_buff"]
+    },
+    {
+      id: "luka_lvl1",
+      name: "Luka (Level 1)",
+      hp: 128,
+      scale: 1.05,
+      sprite: "Luka_level_1.png",
+      fallback: "Luka_level_1.jpg",
+      unlocked: false,
+      moves: ["spear_thrust", "gemstone_drain", "aerial_dive", "focus_stance_buff"]
+    },
+    {
+      id: "luka_lvl2",
+      name: "Luka (Level 2)",
+      hp: 210,
+      scale: 1.15,
+      sprite: "Luka_level_2.png",
+      fallback: "Luka_level_2.jpg",
+      unlocked: false,
+      moves: ["shadow_spear", "dark_gem_drain", "abyssal_strike", "iron_will_buff"]
+    },
+    {
+      id: "luka_lvl3",
+      name: "Luka (Level 3)",
+      hp: 310,
+      scale: 1.25,
+      sprite: "Luka Level 3.png",
+      fallback: "Luka Level 3.jpg",
+      unlocked: false,
+      moves: ["emerald_spear_thrust", "energy_drain", "meteor_fall", "warding_stance_buff"]
+    },
+    {
+      id: "luka_lvl4",
+      name: "Luka (Level 4)",
+      hp: 410,
+      scale: 1.35,
+      sprite: "Luka Level 4.png",
+      fallback: "Luka Level 4.jpg",
+      unlocked: false,
+      moves: ["emerald_god_strike", "energy_drain", "omega_pierce", "battle_fury_buff"]
+    },
+    {
+      id: "luka_lvl5",
+      name: "Luka (Level 5)",
+      hp: 510,
+      scale: 1.45,
+      sprite: "Luka Level 5.png",
+      fallback: "Luka Level 5.jpg",
+      unlocked: false,
+      moves: ["plasma_cannon_shot", "nano_drain", "supercharged_barrage", "hyper_booster_buff"]
+    },
+    {
+      id: "malakor",
+      name: "Malakor",
+      hp: 200,
+      scale: 1.2,
+      sprite: "malakor.png",
+      fallback: "malakor.jpg",
+      unlocked: false,
+      moves: ["lightning_strike", "life_siphon", "abyssal_black_hole", "dark_curse_debuff"]
+    },
+    {
+      id: "malakor_silverax",
+      name: "Malakorax",
+      hp: 2400,
+      scale: 2.3,
+      sprite: "Malakor-Silverax.png",
+      fallback: "Malakor-Silverax.jpg",
+      unlocked: false,
+      moves: ["crystalline_lightning_breath", "arcane_frost_drain", "cataclysmic_volt_storm", "absolute_paralysis_frost"]
+    },
+    {
+      id: "malakor_true_power",
+      name: "Malakor the Sorcerer (True Power)",
+      hp: 800,
+      scale: 1.45,
+      sprite: "malakor the sorcerer (True power).png",
+      fallback: "malakor the sorcerer (True power).jpg",
+      unlocked: false,
+      moves: ["runic_chain_lash", "soul_singularity_drain", "oblivion_supernova", "eldritch_chain_lock"]
+    },
+    {
+      id: "master_fernando",
+      name: "Master Fernando",
+      hp: 500,
+      scale: 1.05,
+      sprite: "Master_Fernando.png",
+      fallback: "Master_Fernando.jpg",
+      unlocked: false,
+      moves: ["cane_thrust", "chi_leech", "zenith_burst", "mystic_lock_stun"]
+    },
+    {
+      id: "merlin",
+      name: "Merlin",
+      hp: 500,
+      scale: 1.0,
+      sprite: "merlin.png",
+      fallback: "merlin.jpg",
+      unlocked: false,
+      moves: ["arcane_bolt", "mana_drain", "meteor_storm", "frost_paralyze"]
+    },
+    {
+      id: "nekros",
+      name: "Nekros",
+      hp: 2000,
+      scale: 2.3,
+      sprite: "nekros.png",
+      fallback: "nekros.jpg",
+      unlocked: false,
+      moves: ["infernal_breath", "flame_leech", "apocalyptic_inferno", "dragon_dance_buff"]
+    },
+    {
+      id: "silverax",
+      name: "Silverax",
+      hp: 1700,
+      scale: 2.2,
+      sprite: "Silverax.png",
+      fallback: "Silverax.jpg",
+      unlocked: false,
+      moves: ["plasma_breath", "core_drain", "hyper_mecha_blast", "emp_paralyze"]
+    },
+    {
+      id: "tugarin",
+      name: "Tugarin",
+      hp: 80,
+      scale: 1.3,
+      sprite: "Tugarin.png",
+      fallback: "Tugarin.jpg",
+      unlocked: false,
+      moves: ["twin_scimitar_slash", "blood_drain", "cyclone_strike", "berserker_warcry"]
+    },
+    {
+      id: "veles",
+      name: "Veles",
+      hp: 200,
+      scale: 1.25,
+      sprite: "Veles.png",
+      fallback: "Veles.jpg",
+      unlocked: false,
+      moves: ["lightning_orb", "volt_drain", "thunderstorm_surge", "paralysis_spark"]
+    },
+    {
+      id: "vexis",
+      name: "Vexis",
+      hp: 300,
+      scale: 1.2,
+      sprite: "vexis.png",
+      fallback: "vexis.jpg",
+      unlocked: false,
+      moves: ["nether_beam", "void_drain", "abyssal_cataclysm", "dark_curse_debuff"]
+    },
+    {
+      id: "zebzy",
+      name: "Zebzy",
+      hp: 160,
+      scale: 1.1,
+      sprite: "Zebzy.png",
+      fallback: "Zebzy.jpg",
+      unlocked: false,
+      moves: ["equine_strike", "vanguard_drain", "stampede_onslaught", "knight_fortitude_buff"]
+    }
+  ];
+
+  const BATTLEFIELDS = [
+    { id: "magical_forest", name: "Magical Forest", file: "magical_forest.png", fallback: "magical_forest.jpg" },
+    { id: "magical_stadium", name: "Magical Stadium", file: "magical_stadium.png", fallback: "magical_stadium.jpg" },
+    { id: "snowy_mountains", name: "Snowy Mountains", file: "snowy mountains.png", fallback: "snowy mountains.jpg" },
+    { id: "volcanic_lands", name: "Volcanic Lands", file: "volcanic_lands.png", fallback: "volcanic_lands.jpg" }
+  ];
+
+  /* ================= PERSISTENT UNLOCK STORAGE ================= */
+  const SAVE_KEY = "battle_arena_unlocked_roster_v9";
+
+  function saveUnlockedFighters() {
+    const unlockedIds = FIGHTERS.filter(f => f.unlocked).map(f => f.id);
+    localStorage.setItem(SAVE_KEY, JSON.stringify(unlockedIds));
+  }
+
+  function loadUnlockedFighters() {
+    const savedData = localStorage.getItem(SAVE_KEY);
+    if (!savedData) return;
+
+    try {
+      const unlockedIds = JSON.parse(savedData);
+      FIGHTERS.forEach(f => {
+        f.unlocked = unlockedIds.includes(f.id);
+      });
+    } catch (e) {
+      console.error("Could not parse saved fighters:", e);
+    }
+  }
+
+  function resetAllUnlocks() {
+    if (confirm("Reset all unlocked characters back to default (all locked)?")) {
+      localStorage.removeItem(SAVE_KEY);
+      location.reload();
+    }
+  }
+
+  loadUnlockedFighters();
+
+  let selectedCharacter = null;
+  let selectedOpponent = null;
+  let selectedField = null;
+
+  function navigateTo(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
+  }
+
+  function enterStepCharacter() {
+    attemptInstantAudio();
+    buildCharacterRoster();
+    navigateTo('step-character-screen');
+  }
+
+  function handleLockedCardClick(fighter) {
+    const enteredCode = prompt(`🔒 ${fighter.name} is currently locked.\nEnter passcode (12345) to unlock:`);
+    if (enteredCode === "12345") {
+      fighter.unlocked = true;
+      saveUnlockedFighters();
+      alert(`🔓 Access Granted! ${fighter.name} is now permanently unlocked.`);
+      buildCharacterRoster();
+      buildOpponentRoster();
+    } else if (enteredCode !== null) {
+      alert("❌ Access Denied! Incorrect passcode.");
+    }
+  }
+
+  function buildCharacterRoster() {
+    const wrap = document.getElementById('player-roster');
+    wrap.innerHTML = '';
+    FIGHTERS.forEach(f => {
+      const card = document.createElement('div');
+      const isSelected = selectedCharacter && selectedCharacter.id === f.id;
+      card.className = `card-choice ${isSelected ? 'selected' : ''} ${!f.unlocked ? 'card-locked' : ''}`;
+      
+      card.innerHTML = `
+        ${!f.unlocked ? '<div class="lock-overlay">🔒 LOCKED</div>' : ''}
+        <div class="card-thumb">
+          <img src="${encodeURI(f.sprite)}" alt="${f.name}" onerror="this.onerror=null; this.src='${encodeURI(f.fallback)}';">
+        </div>
+        <h4>${f.name}</h4>
+        <span class="card-hp-tag">HP: ${f.hp}</span>
+      `;
+
+      card.onclick = () => {
+        if (!f.unlocked) {
+          handleLockedCardClick(f);
+          return;
+        }
+        selectedCharacter = f;
+        document.querySelectorAll('#player-roster .card-choice').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        document.getElementById('btn-confirm-char').disabled = false;
+      };
+      wrap.appendChild(card);
+    });
+  }
+
+  function confirmCharacter() {
+    buildOpponentRoster();
+    navigateTo('step-opponent-screen');
+  }
+
+  function buildOpponentRoster() {
+    const wrap = document.getElementById('opponent-roster');
+    wrap.innerHTML = '';
+    FIGHTERS.forEach(f => {
+      const card = document.createElement('div');
+      const isSelected = selectedOpponent && selectedOpponent.id === f.id;
+      card.className = `card-choice ${isSelected ? 'selected' : ''} ${!f.unlocked ? 'card-locked' : ''}`;
+      
+      card.innerHTML = `
+        ${!f.unlocked ? '<div class="lock-overlay">🔒 LOCKED</div>' : ''}
+        <div class="card-thumb">
+          <img src="${encodeURI(f.sprite)}" alt="${f.name}" onerror="this.onerror=null; this.src='${encodeURI(f.fallback)}';">
+        </div>
+        <h4>${f.name}</h4>
+        <span class="card-hp-tag">HP: ${f.hp}</span>
+      `;
+
+      card.onclick = () => {
+        if (!f.unlocked) {
+          handleLockedCardClick(f);
+          return;
+        }
+        selectedOpponent = f;
+        document.querySelectorAll('#opponent-roster .card-choice').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        document.getElementById('btn-confirm-opp').disabled = false;
+      };
+      wrap.appendChild(card);
+    });
+  }
+
+  function confirmOpponent() {
+    buildFieldRoster();
+    navigateTo('step-field-screen');
+  }
+
+  function buildFieldRoster() {
+    const wrap = document.getElementById('field-roster');
+    wrap.innerHTML = '';
+    BATTLEFIELDS.forEach(b => {
+      const card = document.createElement('div');
+      card.className = `card-choice ${selectedField && selectedField.id === b.id ? 'selected' : ''}`;
+      card.innerHTML = `
+        <div class="card-thumb field-thumb">
+          <img src="${encodeURI(b.file)}" alt="${b.name}" onerror="this.onerror=null; this.src='${encodeURI(b.fallback)}';">
+        </div>
+        <h4>${b.name}</h4>
+      `;
+      card.onclick = () => {
+        selectedField = b;
+        document.querySelectorAll('#field-roster .card-choice').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        document.getElementById('btn-confirm-field').disabled = false;
+      };
+      wrap.appendChild(card);
+    });
+  }
+
+  function openUnlockVault() {
+    const wrap = document.getElementById('vault-items-wrap');
+    wrap.innerHTML = '';
+
+    FIGHTERS.forEach(f => {
+      const item = document.createElement('div');
+      item.className = `vault-item ${f.unlocked ? 'unlocked-item' : ''}`;
+      item.innerHTML = `
+        <img src="${encodeURI(f.sprite)}" alt="${f.name}" onerror="this.onerror=null; this.src='${encodeURI(f.fallback)}';">
+        <h5>${f.name}</h5>
+        <div style="font-size: 10px; font-weight: bold; margin-top: 2px; color: #2ecc71;">HP: ${f.hp}</div>
+        <div style="font-size: 10px; font-weight: bold; margin-top: 2px; color: ${f.unlocked ? '#2ecc71' : '#e74c3c'};">
+          ${f.unlocked ? '🔓 UNLOCKED<br><span style="font-size:9px;color:#d8dee9;">(Click to Lock)</span>' : '🔒 LOCKED<br><span style="font-size:9px;color:#e5a93b;">(Click to Unlock)</span>'}
+        </div>
+      `;
+
+      item.onclick = () => {
+        if (f.unlocked) {
+          if (confirm(`🔒 Do you want to re-lock ${f.name}?`)) {
+            f.unlocked = false;
+
+            if (selectedCharacter && selectedCharacter.id === f.id) {
+              selectedCharacter = null;
+              const btnChar = document.getElementById('btn-confirm-char');
+              if (btnChar) btnChar.disabled = true;
+            }
+            if (selectedOpponent && selectedOpponent.id === f.id) {
+              selectedOpponent = null;
+              const btnOpp = document.getElementById('btn-confirm-opp');
+              if (btnOpp) btnOpp.disabled = true;
+            }
+
+            saveUnlockedFighters();
+            openUnlockVault();
+            buildCharacterRoster();
+            buildOpponentRoster();
+          }
+          return;
+        }
+
+        const enteredCode = prompt(`Enter passcode to unlock ${f.name}:`);
+        if (enteredCode === "12345") {
+          f.unlocked = true;
+          saveUnlockedFighters();
+          alert(`🔓 Access Granted! ${f.name} is now permanently unlocked.`);
+          openUnlockVault();
+          buildCharacterRoster();
+          buildOpponentRoster();
+        } else if (enteredCode !== null) {
+          alert("❌ Access Denied! Incorrect passcode.");
+        }
+      };
+      wrap.appendChild(item);
+    });
+
+    document.getElementById('unlock-modal').style.display = 'flex';
+  }
+
+  function closeUnlockVault() {
+    document.getElementById('unlock-modal').style.display = 'none';
+    buildCharacterRoster();
+    buildOpponentRoster();
+  }
+
+  /* Exit Battle Confirmation Handlers */
+  function openBattleExitPrompt() {
+    document.getElementById('exit-confirm-modal').style.display = 'flex';
+  }
+
+  function cancelBattleExit() {
+    document.getElementById('exit-confirm-modal').style.display = 'none';
+  }
+
+  function executeBattleExit() {
+    document.getElementById('exit-confirm-modal').style.display = 'none';
+    battleActive = false;
+    combatProcessing = false;
+    battleOutcome = null;
+    clearAllCombatTimers();
+
+    const pSprite = document.getElementById('active-player-sprite');
+    const eSprite = document.getElementById('active-enemy-sprite');
+    pSprite.className = "flip-x";
+    eSprite.className = "";
+
+    playTrack(MENU_AUDIO_TRACK);
+    buildCharacterRoster();
+    navigateTo('step-character-screen');
+  }
+
+  /* ================= DYNAMIC ATTACK SKILL REPOSITORY =================
+     Damage dynamically calculates from attacker's maximum HP:
+     • Standard attacks scale to ~14-17% of attacker's Max HP.
+     • Drain attacks scale to ~12% of attacker's Max HP (heals 50% dealt).
+     • Two-turn / ultimate special moves scale to ~26-28% of attacker's Max HP.
+  ====================================================================== */
+  const SKILL_DATABASE = {
+    absorb_drain: { name: "Life Leech", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack; siphons HP, heals 50% dealt." },
+    dragon_meteor: { name: "Hyper Crash", maxPp: 5, power: 26, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Charges. Turn 2: Devastating crash." },
+    hyper_hammer: { name: "War Hammer", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Heavy golden hammer blow." },
+    brawler_smash: { name: "Gauntlet Smash", maxPp: 15, power: 15, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Iron-arm strike." },
+    toxic_fang: { name: "Venom Sting", maxPp: 12, power: 0, accuracy: 90, actionType: "poison", fx: "poison", desc: "Non-damage: Badly poisons enemy." },
+    sharpen_blades: { name: "War Focus", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Raises own Attack by 25%." },
+    flamethrower: { name: "Flamethrower", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Scorching jet of flame." },
+    fire_fang: { name: "Fire Fang", maxPp: 15, power: 14, accuracy: 95, actionType: "damage", fx: "blast", desc: "Damage attack: Fiery elemental bite." },
+    solar_flare: { name: "Solar Flare", maxPp: 5, power: 26, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Charges solar heat. Turn 2: Colossal Blast." },
+    intimidate_roar: { name: "Intimidate Roar", maxPp: 15, power: 0, accuracy: 100, actionType: "debuff", stat: "def", target: "opponent", amount: 0.80, fx: "debuff", desc: "Non-damage: Lowers foe Defense by 20%." },
+
+    cyber_kick: { name: "Cyber Kick", maxPp: 15, power: 15, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: High-voltage thrust." },
+    pulse_drain: { name: "Pulse Drain", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP, heals 50% dealt." },
+    overclock_burst: { name: "Overclock Burst", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Overclocks. Turn 2: Heavy burst." },
+    emp_paralyze: { name: "EMP Stun", maxPp: 10, power: 0, accuracy: 85, actionType: "paralysis", fx: "paralysis", desc: "Non-damage: Paralyzes target 1-3 turns." },
+
+    /* Cyber-Gorgon Moves */
+    cyber_palm_repulsor: { name: "Core Repulsor Blast", maxPp: 15, power: 17, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: High-heat plasma blast." },
+    hyper_core_siphon: { name: "Arc Reactor Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP, heals 50% dealt." },
+    red_plasma_obliteration: { name: "Red Plasma Meltdown", maxPp: 5, power: 28, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Overheats power cell. Turn 2: Colossal blast." },
+    mecha_cyber_shell: { name: "Alloy Bulwark Barrier", maxPp: 12, power: 0, accuracy: 100, actionType: "buff", stat: "def", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Hardened plating boosts Defense by 25%." },
+
+    /* Bohdan with Hammer from Elesium Moves */
+    elesium_hammer_cleave: { name: "Elesium Hammer Cleave", maxPp: 5, power: 20, accuracy: 30, actionType: "damage", fx: "blast", desc: "Damage attack: Prismatic hammer strike." },
+    prismatic_core_drain: { name: "Elesium Light Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Radiant runes drain HP, healing 50%." },
+    elesium_cataclysm: { name: "Elesium Core Quake", maxPp: 5, power: 28, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Lifts prismatic maul. Turn 2: Devastating quake." },
+    bogatyr_valor_aegis: { name: "Elesium Aegis of Valor", maxPp: 12, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Bogatyr fervor boosts Attack by 25%." },
+
+    /* Cyber Rhino Moves */
+    cyber_horn_ram: { name: "Cyber Horn Drill", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Reinforced horn strike." },
+    red_core_siphon: { name: "Thermal Core Leech", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Drains HP, heals 50% dealt." },
+    orbital_cannon_burst: { name: "Hyper Blaster Cannon", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Charges blaster. Turn 2: Incinerating beam." },
+    overcharge_plating_buff: { name: "Red Steel Bulwark", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "def", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Fortifies Defense by 25%." },
+
+    /* Storm Bogatyr Moves */
+    storm_hammer_smash: { name: "Prismatic Hammer Strike", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Runic maul crushes armor." },
+    radiant_rune_drain: { name: "Bogatyr Rune Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Runic crystal siphons HP." },
+    grand_tempest_drop: { name: "Tempest Quake Smash", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Energizes hammer. Turn 2: Seismic shockwave." },
+    bogatyr_fortress_buff: { name: "Warrior's Valor", maxPp: 12, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Raises Attack power by 25%." },
+
+    runic_slash: { name: "Runic Slash", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Strikes with runic blade." },
+    vampiric_blade: { name: "Vampiric Blade", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP, heals 50% dealt." },
+    cataclysm_strike: { name: "Cataclysm Strike", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Gathers fury. Turn 2: Heavy impact." },
+    shield_fortify: { name: "Shield Fortify", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "def", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Boosts own Defense by 25%." },
+
+    chronos_spear: { name: "Chronos Spear", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Thrusts with emerald spear." },
+    emerald_drain: { name: "Emerald Drain", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP, heals 50% dealt." },
+    temporal_surge: { name: "Temporal Surge", maxPp: 5, power: 26, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Gathers rift. Turn 2: Spatial cataclysm." },
+    time_warp_buff: { name: "Time Warp", maxPp: 12, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Warps time to boost Attack by 25%." },
+
+    spear_thrust: { name: "Emerald Piercer", maxPp: 15, power: 15, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Piercing lance strike." },
+    gemstone_drain: { name: "Gem Leech", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Armor crystal drains HP." },
+    aerial_dive: { name: "Sky Spear Fall", maxPp: 5, power: 26, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Vaults up. Turn 2: Crashing plunge." },
+    focus_stance_buff: { name: "Focus Guard", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "def", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Raises Defense by 25%." },
+
+    shadow_spear: { name: "Shadow Staff Lunge", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Dark spear assault." },
+    dark_gem_drain: { name: "Dark Crystal Drain", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Drains HP into dark crystal." },
+    abyssal_strike: { name: "Abyssal Meteor", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Harnesses shadows. Turn 2: Shadow shockwave." },
+    iron_will_buff: { name: "Iron Will", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Boosts Attack by 25%." },
+
+    emerald_spear_thrust: { name: "Staff Piercer", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Thrust with crystal staff." },
+    meteor_fall: { name: "Emerald Comet", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Summons comet. Turn 2: Crater strike." },
+    warding_stance_buff: { name: "Warding Stance", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "def", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Fortifies Defense by 25%." },
+
+    emerald_god_strike: { name: "Omega Crystal Beam", maxPp: 15, power: 17, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Intense emerald laser fire." },
+    omega_pierce: { name: "Titan Judgment", maxPp: 5, power: 28, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Gathers pure power. Turn 2: Annihilation strike." },
+    battle_fury_buff: { name: "Hero Awakening", maxPp: 12, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Unleashes pure energy, boosting Attack by 25%." },
+
+    griffin_blade_slash: { name: "Griffin Saber Slash", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Golden electric blade cut." },
+    aegis_crystal_drain: { name: "Griffin Aegis Leech", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Shield drains HP, heals 50%." },
+    lightning_smite_charge: { name: "Heavenly Smite", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Calls lightning. Turn 2: Heavenly smite." },
+    griffin_bastion_buff: { name: "Griffin Bastion", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "def", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Shield raises Defense by 25%." },
+
+    skyward_lightning_cleave: { name: "Plasma Arc Cleave", maxPp: 15, power: 17, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: High-energy electric slash." },
+    nano_paladin_drain: { name: "Paladin Core Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP, heals 50%." },
+    judgment_vortex_dive: { name: "Skyfall Meteor Cleave", maxPp: 5, power: 28, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Vaults into sky. Turn 2: Cataclysmic drop." },
+    overdrive_aegis_buff: { name: "Overdrive Paladin Aura", maxPp: 12, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Increases Attack by 25%." },
+
+    plasma_cannon_shot: { name: "Dual Arm Cannons", maxPp: 15, power: 17, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Twin plasma burst." },
+    nano_drain: { name: "Energy Core Drain", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Armor siphon drains HP." },
+    supercharged_barrage: { name: "Omega Wing Overdrive", maxPp: 5, power: 28, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Wings charge. Turn 2: Beam barrage." },
+    hyper_booster_buff: { name: "Thruster Boost", maxPp: 12, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Jet thrusters raise Attack by 25%." },
+
+    twin_scimitar_slash: { name: "Twin Scimitar Flurry", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Curved blade cuts." },
+    blood_drain: { name: "Steppe Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Drains HP to regenerate." },
+    cyclone_strike: { name: "Whirlwind Decapitation", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Spins blades. Turn 2: Brutal slice." },
+    berserker_warcry: { name: "Bloodlust Roar", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: War cry raises Attack by 25%." },
+
+    lightning_orb: { name: "Violet Spark Ball", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Surging thunder sphere." },
+    volt_drain: { name: "Static Leech", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP, heals 50%." },
+    thunderstorm_surge: { name: "Grand Violet Tempest", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Gathers lightning. Turn 2: Skyfall blast." },
+    paralysis_spark: { name: "Thunder Lock Stun", maxPp: 10, power: 0, accuracy: 90, actionType: "paralysis", fx: "paralysis", desc: "Non-damage: Paralyzes target in place 1-3 turns." },
+
+    thunder_fist: { name: "Thunder Fist", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: High-voltage punch." },
+    plasma_discharge: { name: "Arc Drain", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Absorbs bio-electric HP." },
+    titan_crush: { name: "Titan Crush", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Powering gauntlet. Turn 2: Crushing smash." },
+    overcharge_stun: { name: "Overcharge Zap", maxPp: 10, power: 0, accuracy: 85, actionType: "paralysis", fx: "paralysis", desc: "Non-damage: Paralyzes target 1-3 turns." },
+
+    radiant_blade: { name: "Radiant Blade", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Holy broadsword strike." },
+    solar_drain: { name: "Sunlight Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP, heals 50%." },
+    judgment_strike: { name: "Judgment Strike", maxPp: 5, power: 26, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Channels judgment. Turn 2: Pure fury." },
+    aegis_ward: { name: "Aegis Ward", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "def", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Raises Defense by 25%." },
+
+    celestial_arrow: { name: "Celestial Arrow", maxPp: 1, power: 200, accuracy: 25, actionType: "damage", fx: "blast", desc: "High-risk arrow: Deals colossal damage on direct hit." },
+    valkyrie_strike: { name: "Valkyrie Dive", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Spreads wings. Turn 2: Aerial assault." },
+    celestial_buff: { name: "Winged Glory", maxPp: 12, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Boosts Attack power by 25%." },
+
+    wrist_blaster: { name: "Gem Blast", maxPp: 15, power: 15, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Crystal wrist beam." },
+    gem_drain: { name: "Crystal Drain", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP with amulet." },
+    orbital_bombardment: { name: "Explorer Strike", maxPp: 5, power: 26, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Coordinates device. Turn 2: Devastating blast." },
+    smokescreen_debuff: { name: "Explorer Smoke", maxPp: 12, power: 0, accuracy: 95, actionType: "debuff", stat: "acc", target: "opponent", amount: 0.80, fx: "debuff", desc: "Non-damage: Drops enemy accuracy by 20%." },
+
+    cyber_pulse: { name: "Cyber Pulse", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Armor gauntlet blast." },
+    vortex_beam: { name: "Vortex Drain", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Kinetic beam restores 50% damage dealt." },
+    hyper_overload: { name: "Full Overload", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Charges armor coils. Turn 2: Massive burst." },
+    shield_charge_buff: { name: "Barrier Matrix", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "def", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Boosts Defense by 25%." },
+
+    cannons_blaster: { name: "Shoulder Cannons", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Dual blaster fire." },
+    shoulder_barrage: { name: "Titan Artillery", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Calibrates twin cannons. Turn 2: Heavy barrage." },
+    defense_grid_buff: { name: "Armor Fortify", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "def", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Locks armor, raising defense by 25%." },
+
+    golden_fist: { name: "Golden Aura Punch", maxPp: 15, power: 17, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Radiant aura punch." },
+    solar_siphon: { name: "Aura Drain", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Drains HP to heal 50% dealt." },
+    godspeed_strike: { name: "Solar Zenith Smash", maxPp: 5, power: 28, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Ascends into aura. Turn 2: Solar strike." },
+    divine_aura_buff: { name: "Golden Surge", maxPp: 12, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Golden light raises Attack by 25%." },
+
+    crystal_blade: { name: "Emerald Blade", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: High-speed sword slash." },
+    emerald_leech: { name: "Shield Leech", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Shield absorbs and heals 50% of dealt." },
+    skyward_slash: { name: "Skyward Surge", maxPp: 5, power: 26, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Leaps skyward. Turn 2: Diving slash." },
+    crystal_shield_buff: { name: "Crystal Ward", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "def", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Matrix raises Defense by 25%." },
+
+    chi_strike: { name: "Chi Punch", maxPp: 15, power: 15, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Concentrated martial strike." },
+    energy_drain: { name: "Aura Drain", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Leeching strike siphons HP." },
+    dragon_kick_charge: { name: "Dragon Kick", maxPp: 5, power: 26, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Focuses inner chi. Turn 2: Jumping dragon kick." },
+    spirit_focus_buff: { name: "Spirit Focus", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Increases Attack by 25%." },
+
+    dragon_breath: { name: "Dragon Breath", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Roaring blue breath." },
+    drain_punch: { name: "Drain Punch", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Fist drains HP, heals 50%." },
+    hyper_beam_rush: { name: "Dragon Meteor Burst", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Charges in throat. Turn 2: Draconic beam." },
+    dragon_dance_buff: { name: "Dragon Dance", maxPp: 12, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Dance boosts Attack by 25%." },
+
+    hydro_pump: { name: "Hydro Blast", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Crushing column of water." },
+    aqua_drain: { name: "Water Pulse Leech", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Vortex heals 50% of damage dealt." },
+    oceanic_hyper_beam: { name: "Oceanic Hyper Beam", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Gathers sea storm. Turn 2: Focused hyper beam." },
+    terrifying_glare: { name: "Frightening Glare", maxPp: 12, power: 0, accuracy: 90, actionType: "paralysis", fx: "paralysis", desc: "Non-damage: Terrifies foe into paralysis for 1-3 turns." },
+
+    volcanic_hammer: { name: "Lava Maul", maxPp: 15, power: 17, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Molten rock hammer smash." },
+    lava_drain: { name: "Magma Leech", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP from burning wounds." },
+    earth_breaker: { name: "Cataclysmic Quake", maxPp: 5, power: 28, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Lifts molten hammer. Turn 2: Seismic quake." },
+    battle_rage_buff: { name: "Rhino Fury", maxPp: 12, power: 0, accuracy: 100, actionType: "buff", stat: "atk", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Enrages to boost Attack by 25%." },
+
+    cane_thrust: { name: "Emerald Cane Strike", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Strike infused with chi." },
+    chi_leech: { name: "Reiki Extraction", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP, heals 50%." },
+    zenith_burst: { name: "Grandmaster Burst", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Pure focus. Turn 2: Grandmaster blast." },
+    mystic_lock_stun: { name: "Chi Lock", maxPp: 10, power: 0, accuracy: 90, actionType: "paralysis", fx: "paralysis", desc: "Non-damage: Paralyzes target 1-3 turns." },
+
+    arcane_bolt: { name: "Arcane Frost Bolt", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Frozen crystal missiles." },
+    mana_drain: { name: "Life Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP, heals 50%." },
+    meteor_storm: { name: "Glacial Cataclysm", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Runic circle. Turn 2: Pure devastation." },
+    frost_paralyze: { name: "Deep Freeze", maxPp: 10, power: 0, accuracy: 85, actionType: "paralysis", fx: "paralysis", desc: "Non-damage: Freezes target in place 1-3 turns." },
+
+    crystalline_lightning_breath: { name: "Glacial Storm Breath", maxPp: 15, power: 17, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Ice and lightning breath." },
+    arcane_frost_drain: { name: "Crystal Void Leech", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Drains HP through frozen shock." },
+    cataclysmic_volt_storm: { name: "Glacial Volt Cataclysm", maxPp: 5, power: 28, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Crackles with voltage. Turn 2: Shock obliteration." },
+    absolute_paralysis_frost: { name: "Permafrost Shock", maxPp: 10, power: 0, accuracy: 90, actionType: "paralysis", fx: "paralysis", desc: "Non-damage: Freezes and shocks target for 1-3 turns." },
+
+    runic_chain_lash: { name: "Runic Chain Lash", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Hooked chains lash the foe." },
+    soul_singularity_drain: { name: "Singularity Drain", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Arcane orb drains HP, heals 50%." },
+    oblivion_supernova: { name: "Oblivion Supernova", maxPp: 5, power: 28, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Compresses sorcery. Turn 2: Annihilation burst." },
+    eldritch_chain_lock: { name: "Eldritch Chain Lock", maxPp: 10, power: 0, accuracy: 90, actionType: "paralysis", fx: "paralysis", desc: "Non-damage: Runic chains bind and paralyze target 1-3 turns." },
+
+    nether_beam: { name: "Nether Ray", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Dark beam attack." },
+    void_drain: { name: "Void Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Drains HP via ethereal rune." },
+    abyssal_cataclysm: { name: "Shadow Cataclysm", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Summons shadow ring. Turn 2: Total annihilation." },
+    dark_curse_debuff: { name: "Hexing Curse", maxPp: 12, power: 0, accuracy: 95, actionType: "debuff", stat: "def", target: "opponent", amount: 0.80, fx: "debuff", desc: "Non-damage: Lowers foe Defense by 20%." },
+
+    equine_strike: { name: "Titan Gauntlet Jab", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Silver armor-shattering punch." },
+    vanguard_drain: { name: "Knight Vitality Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP, heals 50% dealt." },
+    stampede_onslaught: { name: "Crusader Stampede", maxPp: 5, power: 26, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Digs in hooves. Turn 2: Charging smash." },
+    knight_fortitude_buff: { name: "Knight Fortitude", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "def", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Posture raises Defense by 25%." },
+
+    glacial_breath: { name: "Glacial Frost Breath", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Freezing blizzard gale." },
+    frost_drain: { name: "Ice Crystal Leech", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP, heals 50% dealt." },
+    absolute_zero_blast: { name: "Absolute Zero Comet", maxPp: 5, power: 28, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Freezes the air. Turn 2: Glacial impact." },
+    frostbite_paralyze: { name: "Permafrost Freeze", maxPp: 10, power: 0, accuracy: 85, actionType: "paralysis", fx: "paralysis", desc: "Non-damage: Freezes target in place 1-3 turns." },
+
+    war_hammer_crush: { name: "Bohdan War Smash", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Massive stone hammer smash." },
+    siphon_slam: { name: "Siphon Bash", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Converts smash to heal 50% dealt." },
+    cataclysmic_quake: { name: "Cataclysmic Quake", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Raises heavy war hammer. Turn 2: Ground quake." },
+    iron_defense_buff: { name: "Iron Fortress", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "def", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Armor brace boosts Defense by 25%." },
+
+    plasma_claw: { name: "Cinder Claws", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Scorching molten rend." },
+    magma_siphon: { name: "Volcanic Leech", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP, heals 50% dealt." },
+    hyper_atomic_breath: { name: "Blue Plasma Breath", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Gills glow with heat. Turn 2: Atomic blast." },
+    molten_scales_buff: { name: "Lava Armor", maxPp: 15, power: 0, accuracy: 100, actionType: "buff", stat: "def", target: "self", amount: 1.25, fx: "buff", desc: "Non-damage: Hardened scales increase Defense by 25%." },
+
+    blood_fist: { name: "Crimson Claw Rend", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Brutal dark gauntlet slash." },
+    draining_rend: { name: "Dark Blood Leech", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Siphons HP, heals 50% dealt." },
+    dark_colossus_smash: { name: "Abyssal Ground Slam", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Gathers black blood. Turn 2: Heavy slam." },
+
+    tri_elemental_strike: { name: "Trinity Dragon Breath", maxPp: 15, power: 17, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Three-headed breath beam." },
+    vital_leech: { name: "Armored Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Jaws drain HP, heal 50% dealt." },
+    apocalypse_storm: { name: "Grand Draconic Storm", maxPp: 5, power: 28, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Heads channel power. Turn 2: Apocalyptic storm." },
+
+    triple_shadow_breath: { name: "Triple Umbral Breath", maxPp: 15, power: 17, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Three dark draconic flame blasts." },
+    void_drain: { name: "Void Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Drains HP, heals 50% dealt." },
+
+    thunder_hammer_bash: { name: "Thunder Maul Smash", maxPp: 15, power: 17, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Electrified molten hammer strike." },
+    volcanic_drain: { name: "Rune Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Runes drain HP, heals 50% dealt." },
+    tectonic_slam: { name: "Tectonic Overload", maxPp: 5, power: 28, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Surges lightning. Turn 2: Massive impact." },
+
+    lightning_strike: { name: "Dark Arc Bolt", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Dark lightning strike." },
+    life_siphon: { name: "Nether Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Drains HP into dark orb." },
+    abyssal_black_hole: { name: "Singularity Collapse", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Spins energy orb. Turn 2: Void explosion." },
+
+    infernal_breath: { name: "Scorching Magma Stream", maxPp: 15, power: 17, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Torrent of molten fire." },
+    flame_leech: { name: "Cinder Leech", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Burning bite restores 50% of HP dealt." },
+    apocalyptic_inferno: { name: "Apocalyptic Inferno", maxPp: 5, power: 28, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Ignites in magma. Turn 2: Cataclysmic inferno." },
+
+    plasma_breath: { name: "Blue Plasma Fire", maxPp: 15, power: 16, accuracy: 100, actionType: "damage", fx: "blast", desc: "Damage attack: Synthetic fire breath." },
+    core_drain: { name: "Reactor Siphon", maxPp: 10, power: 12, accuracy: 100, actionType: "drain", fx: "drain", desc: "Damage attack: Core converts HP, heals 50% dealt." },
+    hyper_mecha_blast: { name: "Overdrive Core Blast", maxPp: 5, power: 27, accuracy: 90, actionType: "two_turn", fx: "blast", desc: "Turn 1: Cells charge. Turn 2: Massive plasma cannon." }
+  };
+
+  /* ================= BATTLE SIMULATOR ================= */
+  let activePlayer, activeEnemy;
+  let combatProcessing = false;
+  let battleActive = false;
+  let battleOutcome = null;
+  let activeTimers = [];
+
+  function safeTimeout(fn, ms) {
+    const id = setTimeout(() => {
+      activeTimers = activeTimers.filter(t => t !== id);
+      if (battleActive) fn();
+    }, ms);
+    activeTimers.push(id);
+    return id;
+  }
+
+  function clearAllCombatTimers() {
+    activeTimers.forEach(id => clearTimeout(id));
+    activeTimers = [];
+  }
+
+  function buildCombatant(fighterObj) {
+    const totalHp = fighterObj.hp || 120;
+    return {
+      name: fighterObj.name,
+      sprite: fighterObj.sprite,
+      fallback: fighterObj.fallback,
+      scale: fighterObj.scale || 1.0,
+      maxHp: totalHp,
+      hp: totalHp,
+      atkMod: 1.0,
+      defMod: 1.0,
+      accMod: 1.0,
+      isPoisoned: false,
+      paralyzedRounds: 0,
+      activeCharge: null,
+      skills: fighterObj.moves.map(id => ({ id, ...SKILL_DATABASE[id], remainingPp: SKILL_DATABASE[id].maxPp }))
+    };
+  }
+
+  function applyFighterScale(unitContainerId, spriteWrapId, scaleFactor) {
+    const container = document.getElementById(unitContainerId);
+    const wrap = document.getElementById(spriteWrapId);
+    
+    const baseWrapWidth = 220;
+    const baseWrapHeight = 220;
+    const baseContainerWidth = 260;
+
+    const targetWrapWidth = Math.round(baseWrapWidth * scaleFactor);
+    const targetWrapHeight = Math.round(baseWrapHeight * scaleFactor);
+    const targetContainerWidth = Math.round(baseContainerWidth * Math.max(1, scaleFactor * 0.75));
+
+    wrap.style.width = `${targetWrapWidth}px`;
+    wrap.style.height = `${targetWrapHeight}px`;
+    container.style.width = `${targetContainerWidth}px`;
+  }
+
+  function triggerParticleFx(targetLayerId, fxType) {
+    const layer = document.getElementById(targetLayerId);
+    if (!layer) return;
+
+    layer.innerHTML = '';
+
+    const flare = document.createElement('div');
+    flare.className = 'spell-flare';
+
+    let flareColor = 'radial-gradient(circle, rgba(255,200,50,0.9) 0%, rgba(255,50,0,0.5) 50%, transparent 80%)';
+    let particleColor = '#ffb300';
+
+    if (fxType === 'drain') {
+      flareColor = 'radial-gradient(circle, rgba(46,204,113,0.95) 0%, rgba(52,152,219,0.6) 50%, transparent 80%)';
+      particleColor = '#2ecc71';
+    } else if (fxType === 'paralysis') {
+      flareColor = 'radial-gradient(circle, rgba(241,196,15,0.95) 0%, rgba(230,126,34,0.6) 50%, transparent 80%)';
+      particleColor = '#f1c40f';
+    } else if (fxType === 'poison') {
+      flareColor = 'radial-gradient(circle, rgba(155,89,182,0.95) 0%, rgba(142,68,173,0.6) 50%, transparent 80%)';
+      particleColor = '#9b59b6';
+    } else if (fxType === 'buff' || fxType === 'debuff') {
+      flareColor = 'radial-gradient(circle, rgba(79,140,255,0.95) 0%, rgba(41,128,185,0.6) 50%, transparent 80%)';
+      particleColor = '#4f8cff';
+    }
+
+    flare.style.background = flareColor;
+    layer.appendChild(flare);
+
+    for (let i = 0; i < 16; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.floor(Math.random() * 9) + 5;
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.floor(Math.random() * 85) + 35;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist;
+
+      p.style.width = `${size}px`;
+      p.style.height = `${size}px`;
+      p.style.background = particleColor;
+      p.style.boxShadow = `0 0 8px ${particleColor}`;
+      p.style.setProperty('--dx', `${dx}px`);
+      p.style.setProperty('--dy', `${dy}px`);
+      layer.appendChild(p);
+    }
+
+    safeTimeout(() => { layer.innerHTML = ''; }, 600);
+  }
+
+  function initiateBattle() {
+    battleActive = true;
+    combatProcessing = false;
+    battleOutcome = null;
+    clearAllCombatTimers();
+
+    playTrack(BATTLE_AUDIO_TRACK);
+
+    const bgLayer = document.getElementById('battle-bg-layer');
+    const primaryUrl = encodeURI(selectedField.file);
+    const fallbackUrl = encodeURI(selectedField.fallback);
+
+    const testImg = new Image();
+    testImg.onload = () => { bgLayer.style.backgroundImage = `url("${primaryUrl}")`; };
+    testImg.onerror = () => { bgLayer.style.backgroundImage = `url("${fallbackUrl}")`; };
+    testImg.src = primaryUrl;
+
+    const pSprite = document.getElementById('active-player-sprite');
+    const eSprite = document.getElementById('active-enemy-sprite');
+    
+    pSprite.src = encodeURI(selectedCharacter.sprite);
+    pSprite.onerror = function() { this.src = encodeURI(selectedCharacter.fallback); };
+    
+    eSprite.src = encodeURI(selectedOpponent.sprite);
+    eSprite.onerror = function() { this.src = encodeURI(selectedOpponent.fallback); };
+
+    pSprite.className = "flip-x";
+    eSprite.className = "";
+
+    activePlayer = buildCombatant(selectedCharacter);
+    activeEnemy = buildCombatant(selectedOpponent);
+
+    applyFighterScale('player-unit-container', 'player-sprite-wrap', activePlayer.scale);
+    applyFighterScale('enemy-unit-container', 'enemy-sprite-wrap', activeEnemy.scale);
+
+    document.getElementById('arena-log-feed').innerHTML = '';
+    writeBattleLog(`A battle has commenced between <b>${activePlayer.name}</b> and <b>${activeEnemy.name}</b>!`);
+
+    refreshBattleDisplays();
+    navigateTo('battle-screen');
+  }
+
+  function writeBattleLog(text) {
+    const feed = document.getElementById('arena-log-feed');
+    feed.innerHTML += `<p>${text}</p>`;
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  function refreshBattleDisplays() {
+    const pPct = Math.max(0, (activePlayer.hp / activePlayer.maxHp) * 100);
+    const pMeter = document.getElementById('player-hp-meter');
+    pMeter.style.width = `${pPct}%`;
+    pMeter.style.background = pPct < 25 ? 'var(--hp-red)' : pPct < 50 ? 'var(--hp-yellow)' : 'var(--hp-green)';
+    document.getElementById('player-unit-name').innerText = activePlayer.name;
+    document.getElementById('player-hp-num').innerText = `${Math.ceil(activePlayer.hp)}/${activePlayer.maxHp}`;
+
+    const ePct = Math.max(0, (activeEnemy.hp / activeEnemy.maxHp) * 100);
+    const eMeter = document.getElementById('enemy-hp-meter');
+    eMeter.style.width = `${ePct}%`;
+    eMeter.style.background = ePct < 25 ? 'var(--hp-red)' : ePct < 50 ? 'var(--hp-yellow)' : 'var(--hp-green)';
+    document.getElementById('enemy-unit-name').innerText = activeEnemy.name;
+    document.getElementById('enemy-hp-num').innerText = `${Math.ceil(activeEnemy.hp)}/${activeEnemy.maxHp}`;
+
+    document.getElementById('player-status-badges').innerHTML =
+      (activePlayer.isPoisoned ? '<span class="badge badge-psn">POISON</span>' : '') +
+      (activePlayer.paralyzedRounds > 0 ? '<span class="badge badge-prz">PARALYZED</span>' : '');
+    document.getElementById('enemy-status-badges').innerHTML =
+      (activeEnemy.isPoisoned ? '<span class="badge badge-psn">POISON</span>' : '') +
+      (activeEnemy.paralyzedRounds > 0 ? '<span class="badge badge-prz">PARALYZED</span>' : '');
+
+    const cmdWrap = document.getElementById('action-commands');
+    cmdWrap.innerHTML = '';
+
+    const fleeBtn = document.getElementById('btn-forfeit-duel');
+    if (fleeBtn) fleeBtn.disabled = combatProcessing;
+
+    if (!battleActive && battleOutcome) {
+      if (fleeBtn) fleeBtn.style.display = 'none';
+
+      const outcomeBox = document.createElement('div');
+      outcomeBox.className = 'post-match-controls';
+
+      let resultHtml = '';
+      if (battleOutcome.isDraw) {
+        resultHtml = `
+          <div class="winner-banner draw-text">⚖️ Mutual Draw!</div>
+          <div style="font-size: 14px; color: #d8dee9;">Both <b>${activePlayer.name}</b> and <b>${activeEnemy.name}</b> were knocked out!</div>
+        `;
+      } else {
+        resultHtml = `
+          <div class="winner-banner winner-text">🏆 WINNER: ${battleOutcome.winner.toUpperCase()}!</div>
+          <div class="loser-text" style="font-size: 14px; font-weight: bold;">💀 DEFEATED: ${battleOutcome.loser} has lost the match.</div>
+        `;
+      }
+
+      outcomeBox.innerHTML = `
+        ${resultHtml}
+        <div class="post-btn-group">
+          <button class="btn-rematch" onclick="initiateBattle()">🔄 Rematch</button>
+          <button class="btn-menu-exit" onclick="returnToMenuFromBattle()">📋 Return to Menu</button>
+        </div>
+      `;
+      cmdWrap.appendChild(outcomeBox);
+      return;
+    } else {
+      if (fleeBtn) fleeBtn.style.display = 'block';
+    }
+
+    activePlayer.skills.forEach((skl, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'atk-btn';
+      btn.disabled = combatProcessing || skl.remainingPp <= 0;
+      btn.innerHTML = `
+        <span class="name">${skl.name} [PP: ${skl.remainingPp}/${skl.maxPp}]</span>
+        <span class="desc">${skl.desc}</span>
+      `;
+      btn.onclick = () => triggerRound(idx);
+      cmdWrap.appendChild(btn);
+    });
+  }
+
+  function returnToMenuFromBattle() {
+    battleActive = false;
+    combatProcessing = false;
+    battleOutcome = null;
+    clearAllCombatTimers();
+    playTrack(MENU_AUDIO_TRACK);
+    buildCharacterRoster();
+    navigateTo('step-character-screen');
+  }
+
+  function pauseTime(ms) {
+    return new Promise(r => safeTimeout(r, ms));
+  }
+
+  async function triggerRound(playerSkillIndex) {
+    if (combatProcessing || !battleActive) return;
+    combatProcessing = true;
+    refreshBattleDisplays();
+
+    await resolveFighterMove(activePlayer, activeEnemy, playerSkillIndex, true);
+    if (!battleActive || evaluateBattleState()) return;
+
+    await pauseTime(600);
+    if (!battleActive) return;
+
+    const readySkills = activeEnemy.skills
+      .map((s, idx) => ({ ...s, rosterIndex: idx }))
+      .filter(s => s.remainingPp > 0);
+    const chosenAiIndex = readySkills.length > 0
+      ? readySkills[Math.floor(Math.random() * readySkills.length)].rosterIndex
+      : 0;
+
+    await resolveFighterMove(activeEnemy, activePlayer, chosenAiIndex, false);
+    if (!battleActive || evaluateBattleState()) return;
+
+    resolvePoisonEffect(activePlayer);
+    resolvePoisonEffect(activeEnemy);
+    if (!battleActive || evaluateBattleState()) return;
+
+    combatProcessing = false;
+    refreshBattleDisplays();
+  }
+
+  async function resolveFighterMove(attacker, defender, skillIndex, isPlayer) {
+    if (!battleActive) return;
+    const skill = attacker.skills[skillIndex];
+    const attackerSprite = document.getElementById(isPlayer ? 'active-player-sprite' : 'active-enemy-sprite');
+    const defenderSprite = document.getElementById(isPlayer ? 'active-enemy-sprite' : 'active-player-sprite');
+    const defenderFxLayer = isPlayer ? 'enemy-fx-layer' : 'player-fx-layer';
+    const arenaScreen = document.getElementById('battle-screen');
+
+    if (attacker.paralyzedRounds > 0) {
+      attacker.paralyzedRounds--;
+      attackerSprite.classList.remove('anim-charge');
+      writeBattleLog(`⚡ <b>${attacker.name}</b> is paralyzed! (${attacker.paralyzedRounds} turn(s) left)`);
+      return;
+    }
+
+    if (skill.actionType === 'two_turn' && !attacker.activeCharge) {
+      attacker.activeCharge = skill;
+      skill.remainingPp--;
+      attackerSprite.classList.add('anim-charge');
+      playFxSound('buff');
+      writeBattleLog(`🌀 <b>${attacker.name}</b> began gathering power for <b>${skill.name}</b>!`);
+      return;
+    }
+
+    attackerSprite.classList.remove('anim-charge');
+    
+    const lungeAnim = isPlayer ? 'anim-lunge-right' : 'anim-lunge-left';
+    attackerSprite.classList.add(lungeAnim);
+    playFxSound(skill.fx);
+
+    safeTimeout(() => {
+      attackerSprite.classList.remove(lungeAnim);
+    }, 450);
+
+    if (attacker.activeCharge) {
+      writeBattleLog(`💥 <b>${attacker.name}</b> releases the gathered energy!`);
+      attacker.activeCharge = null;
+    } else {
+      skill.remainingPp--;
+      writeBattleLog(`▶ <b>${attacker.name}</b> used <b>${skill.name}</b>!`);
+    }
+
+    const accRoll = Math.random() * 100;
+    if (accRoll > (skill.accuracy * attacker.accMod)) {
+      writeBattleLog(`...the attack missed!`);
+      return;
+    }
+
+    defenderSprite.classList.add('anim-heavy-hit');
+    arenaScreen.classList.add('arena-screenshake');
+    triggerParticleFx(defenderFxLayer, skill.fx);
+
+    safeTimeout(() => {
+      defenderSprite.classList.remove('anim-heavy-hit');
+      arenaScreen.classList.remove('arena-screenshake');
+    }, 400);
+
+    if (skill.power > 0) {
+      const basePct = skill.power / 100;
+      /* Dynamic calculation: Damage scales with the attacker's Max HP */
+      const calculatedDamage = Math.max(1, Math.round(attacker.maxHp * basePct * (attacker.atkMod / defender.defMod)));
+      
+      defender.hp = Math.max(0, defender.hp - calculatedDamage);
+      writeBattleLog(`🎯 ${defender.name} took ${calculatedDamage} damage!`);
+
+      if (skill.actionType === 'drain') {
+        const drainRecovery = Math.round(calculatedDamage * 0.5);
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + drainRecovery);
+        writeBattleLog(`💚 ${attacker.name} restored ${drainRecovery} HP!`);
+      }
+    }
+
+    if (skill.actionType === 'poison') {
+      if (!defender.isPoisoned) {
+        defender.isPoisoned = true;
+        writeBattleLog(`☠️ ${defender.name} was infected with poison!`);
+      } else {
+        writeBattleLog(`...${defender.name} is already poisoned.`);
+      }
+    }
+
+    if (skill.actionType === 'paralysis') {
+      if (defender.paralyzedRounds === 0) {
+        defender.paralyzedRounds = Math.floor(Math.random() * 3) + 1;
+        writeBattleLog(`⚡ ${defender.name} was paralyzed for ${defender.paralyzedRounds} turn(s)!`);
+      } else {
+        writeBattleLog(`...${defender.name} is already paralyzed.`);
+      }
+    }
+
+    if (skill.actionType === 'buff') {
+      attacker[`${skill.stat}Mod`] = parseFloat((attacker[`${skill.stat}Mod`] * skill.amount).toFixed(2));
+      writeBattleLog(`📈 ${attacker.name}'s ${skill.stat.toUpperCase()} increased!`);
+    }
+    if (skill.actionType === 'debuff') {
+      defender[`${skill.stat}Mod`] = parseFloat((defender[`${skill.stat}Mod`] * skill.amount).toFixed(2));
+      writeBattleLog(`📉 ${defender.name}'s ${skill.stat.toUpperCase()} decreased!`);
+    }
+
+    refreshBattleDisplays();
+  }
+
+  function resolvePoisonEffect(fighter) {
+    if (fighter.isPoisoned && fighter.hp > 0) {
+      const dmg = Math.max(1, Math.round(fighter.maxHp * 0.05));
+      fighter.hp = Math.max(0, fighter.hp - dmg);
+      writeBattleLog(`☠️ ${fighter.name} suffered ${dmg} poison damage.`);
+    }
+  }
+
+  function evaluateBattleState() {
+    if (activePlayer.hp <= 0 || activeEnemy.hp <= 0) {
+      battleActive = false;
+      combatProcessing = false;
+      clearAllCombatTimers();
+
+      const pSprite = document.getElementById('active-player-sprite');
+      const eSprite = document.getElementById('active-enemy-sprite');
+
+      if (activePlayer.hp <= 0 && activeEnemy.hp <= 0) {
+        pSprite.classList.add('fighter-fainted');
+        eSprite.classList.add('fighter-fainted');
+        battleOutcome = { isDraw: true };
+        playFxSound('defeat');
+        writeBattleLog(`⚖️ <b>DRAW: Both fighters collapsed! Neither claims victory.</b>`);
+      } else if (activePlayer.hp <= 0) {
+        pSprite.classList.add('fighter-fainted');
+        battleOutcome = {
+          winner: activeEnemy.name,
+          loser: activePlayer.name,
+          isDraw: false
+        };
+        playFxSound('defeat');
+        writeBattleLog(`💀 <b>DEFEAT: ${activePlayer.name} has fallen! ${activeEnemy.name} emerges victorious!</b>`);
+      } else {
+        eSprite.classList.add('fighter-fainted');
+        battleOutcome = {
+          winner: activePlayer.name,
+          loser: activeEnemy.name,
+          isDraw: false
+        };
+        playFxSound('victory');
+        writeBattleLog(`🏆 <b>VICTORY: ${activePlayer.name} wins the match! ${activeEnemy.name} was defeated!</b>`);
+      }
+
+      refreshBattleDisplays();
+      return true;
+    }
+    return false;
+  }
+
+  window.addEventListener('beforeunload', (e) => {
+    if (battleActive) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  const userGestureTriggers = ['click', 'keydown', 'touchstart', 'mousedown'];
+  userGestureTriggers.forEach(event => {
+    window.addEventListener(event, function startAudioOnGesture() {
+      attemptInstantAudio();
+      userGestureTriggers.forEach(e => window.removeEventListener(e, startAudioOnGesture));
+    }, { once: true });
+  });
+</script>
+</body>
+</html>
